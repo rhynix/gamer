@@ -1,0 +1,8 @@
+{
+ :dependencies [[org.clojure/clojure "1.10.1"]
+                [org.clojure/core.match "0.3.0"]]
+ :paths ["src"]
+ :aliases {:test {:extra-paths ["test/main/clojure"]
+                  :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-529"}}
+                  :main-opts ["-m" "kaocha.runner"]}
+           :run {:main-opts ["-m" "gamer.core"]}}}
