@@ -47,16 +47,16 @@
 (deftest contonue?-returns-false-for-draw-board
   (is (not (continue? (db-with-board draw-board)))))
 
-(deftest update-db-sets-value-for-player
-  (is (= [[nil :x nil]
+(deftest update-db-sets-value-for-player-and-opponent
+  (is (= [[:o :x nil]
           [nil nil nil]
           [nil nil nil]]
          (->> (db-with-board-and-player empty-board :x)
               (update-db "2")
               (::game/board)))))
 
-(deftest update-db-switches-player
-  (is (= :o
+(deftest update-db-switches-player-twice
+  (is (= :x
          (->> (db-with-board-and-player empty-board :x)
               (update-db "2")
               (::game/player)))))
