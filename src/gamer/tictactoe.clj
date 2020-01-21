@@ -53,15 +53,12 @@
   (map #(get-in board %) positions))
 
 (defn- has-won? [board player]
-  (as-> winning-positions $
-    (map #(get-positions board %) $)
-    (filter #(every? (partial = player) %) $)
-    (> (count $) 0)))
+  (->> winning-positions
+    (map #(get-positions board %))
+    (some (partial every? #(= % player)))))
 
 (defn- winner-of [board]
-  (->> players
-       (filter #(has-won? board %))
-       (first)))
+  (first (filter #(has-won? board %) players)))
 
 (defn- board-full? [board]
   (not-any? nil? (flatten board)))
@@ -77,12 +74,11 @@
        (map #(assoc-in board % player))
        (map #(assoc db ::board %))))
 
-(defn- switch-opponent [db]
+(defn- switch-player [db]
   (update db ::player opponent-of))
 
 (declare update-best-move)
 (declare score)
-(declare render-board)
 
 (defn- score-without-cache [db player]
   (if (continue? db)
@@ -100,9 +96,8 @@
 (defn- update-best-move [db]
   (->> db
        (potential-updates)
-       (map switch-opponent)
-       (sort-by #(score % (::player db)) >)
-       (first)))
+       (map switch-player)
+       (apply max-key #(score % (::player db)))))
 
 (defn- str->pos [string]
   (let [idx (spec/assert
