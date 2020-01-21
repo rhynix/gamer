@@ -5,6 +5,11 @@
 
 (def ^:private players #{:x :o})
 
+(def ^:private all-positions
+  (for [y (range 0 3)
+        x (range 0 3)]
+    [y x]))
+
 (def ^:private winning-positions
   [[[0 0] [0 1] [0 2]]
    [[1 0] [1 1] [1 2]]
@@ -39,6 +44,11 @@
     {::board initial-board
      ::player :x}))
 
+(defn- opponent-of [player]
+  (case player
+    :x :o
+    :o :x))
+
 (defn- get-positions [board positions]
   (map #(get-in board %) positions))
 
@@ -48,7 +58,7 @@
     (filter #(every? (partial = player) %) $)
     (> (count $) 0)))
 
-(defn- winning-player [board]
+(defn- winner-of [board]
   (->> players
        (filter #(has-won? board %))
        (first)))
@@ -59,7 +69,40 @@
 (defn continue? [{:keys [::board]}]
   (and
     (not (board-full? board))
-    (nil? (winning-player board))))
+    (nil? (winner-of board))))
+
+(defn- potential-updates [{:keys [::board ::player] :as db}]
+  (->> all-positions
+       (filter #(nil? (get-in board %)))
+       (map #(assoc-in board % player))
+       (map #(assoc db ::board %))))
+
+(defn- switch-opponent [db]
+  (update db ::player opponent-of))
+
+(declare update-best-move)
+(declare score)
+(declare render-board)
+
+(defn- score-without-cache [db player]
+  (if (continue? db)
+    (-> db
+        (update-best-move)
+        (score player))
+    (let [winner (winner-of (::board db))]
+      (cond
+        (= winner player) 1
+        (= winner (opponent-of player)) -1
+        :else 0))))
+
+(def ^:private score (memoize score-without-cache))
+
+(defn- update-best-move [db]
+  (->> db
+       (potential-updates)
+       (map switch-opponent)
+       (sort-by #(score % (::player db)) >)
+       (first)))
 
 (defn- str->pos [string]
   (let [idx (spec/assert
@@ -71,16 +114,17 @@
   (spec/assert nil? (get-in board pos))
   (assoc-in board pos player))
 
-(defn- next-player [player]
-  (case player
-    :x :o
-    :o :x))
-
-(defn update-db [input {:keys [::board ::player]}]
+(defn handle-user-input [input {:keys [::board ::player]}]
   {::board (as-> input $
-            (str->pos $)
-            (update-board board $ player))
-   ::player (next-player player)})
+             (str->pos $)
+             (update-board board $ player))
+   ::player (opponent-of player)})
+
+(defn update-db [input db]
+  (let [db-after-user (handle-user-input input db)]
+    (if (continue? db-after-user)
+      (update-best-move db-after-user)
+      db-after-user)))
 
 (defn- render-player [value]
   (case value
@@ -108,7 +152,7 @@
   (format
     "%s\n%s"
     (render-board board)
-    (let [winner (winning-player board)]
+    (let [winner (winner-of board)]
       (cond
         winner (format "%s has won!\n" (render-player winner))
         (board-full? board) "Draw!\n"
